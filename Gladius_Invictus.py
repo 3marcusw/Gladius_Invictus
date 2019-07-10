@@ -187,7 +187,7 @@ class Frame:
         cylinder(r=WeaponBlade.r + 4, h=WeaponBlade.t + 6, center=True)
     ))
     lid_cylinder = (rot([0, theta, 0], cylinder(r1=1.5*r, r2=0.75*r, h=r*1, center=True)))
-    lid_ellipsoid = rot([0, theta, 0], scale([2, 2, 1])(sphere(r*0.26)))
+    lid_ellipsoid = rot([0, theta, 0], scale([1.5, 1.5, 1])(sphere(r*0.26)))
 
     # lid_plane_equation: z = -hx/2l + h/2
     # co-ordinates for the sphere in the front corner of the lid
@@ -207,14 +207,20 @@ class Frame:
     c1_lid_z = -h * c1_lid_x / (2 * l) + h / 2
     # cylinder in the front corner
     c1_lid = trans([c1_lid_x, 0, c1_lid_z], lid_cylinder)
-    c3_lid_x = 0.78  * l
+    c3_lid_x = 0.78 * l
     c3_lid_z = -h * c3_lid_x / (2 * l) + h / 2
     c3_lid = trans([c3_lid_x, 0.17*w, c3_lid_z], lid_cylinder)
     c4_lid_x = 0.78 * l
     c4_lid_z = -h * c4_lid_x / (2 * l) + h / 2
     c4_lid = trans([c4_lid_x, -0.17*w , c4_lid_z], lid_cylinder)
-
-    top_hole = up(r*0.8)(hull()(s1_lid, s3_lid, s4_lid))
+    pry_space_h = r
+    pry_space_r = 4*r
+    pry_space_x = 0.75 * l
+    pry_space_z = -h * pry_space_x / (2 * l) + h/2 + pry_space_h + 0.17
+    pry_space = trans([pry_space_x, 0, pry_space_z],
+                        rot([0,theta,0], (cylinder(r=pry_space_r, h=pry_space_h, center=True))))
+    lid = up(r*0.8)(hull()(s1_lid, s3_lid, s4_lid))
+    top_hole = lid + pry_space
     top_through_hole = (up(r*0.5)(hull()(c1_lid, c3_lid, c4_lid)))
 
     truss_l = 80
@@ -278,11 +284,10 @@ def cutaway_xy(obj: OpenSCADObject, z=0):
 
 # what shows up
 def assembly():
-    return DriveSystem.obj
-    #return up(50)(rot([0, Frame.theta,0],Frame.lid))
     #return DriveSystem.obj
-    return cutaway_xy(Frame.obj) - mirror_copy([0, 1, 0], trans([Frame.l * .93, Frame.w * -0.31, 0], (rot([90, 90, 0], DriveSystem.obj)))) + trans([Frame.l * .93, Frame.w * -0.31, 0], (rot([90, 90, 0], DriveSystem.obj)))
-    #return cutaway_xz(Frame.obj)
+    #return DriveSystem.obj
+    #return (Frame.obj) - mirror_copy([0, 1, 0], trans([Frame.l * .93, Frame.w * -0.31, 0], (rot([90, 90, 0], DriveSystem.obj)))) + trans([Frame.l * .93, Frame.w * -0.31, 0], (rot([90, 90, 0], DriveSystem.obj)))
+    return (Frame.obj)
     # return cutaway_xz(Frame.obj + trans([Frame.l*0.8,0,0], DriveSystem.obj))
     #return rot([0,Frame.theta,0], left(Frame.overhang)(WeaponMotor.obj+WeaponBlade.obj) + Frame.obj)
 
