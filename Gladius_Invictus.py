@@ -14,7 +14,7 @@ from functools import reduce
 # What do these letters mean?
 # l is always length, h is always height, w is always width, r is always radius
 # t is thickness
-SEGMENTS = 40
+SEGMENTS = 20
 
 
 def mirror_copy(vector, obj: OpenSCADObject):
@@ -89,26 +89,7 @@ def sweep_about_y(shape: OpenSCADObject, end_angle=180, step_angle=15):
     return union()(shapes)
 
 
-class GearMotor:
 
-    exposed_shaft_l = 8.67
-    gearbox_l = 9
-    motor_l = 17
-    total_l = exposed_shaft_l + gearbox_l + motor_l
-    h = 10
-    w = 12
-    collar_h = 0.6
-    collar_r = 1.75
-    motor_r = 6
-    shaft_r = 1.5
-    shaft_flat = 1.25
-    motor = up(motor_l/2)(cube([h, w, motor_l], center=True)) * cylinder(r=motor_r, h=motor_l)
-    gearbox = cube([h, w, gearbox_l], center=True)
-    collar = cylinder(r=collar_r, h=collar_h, center=True)
-    shaft = cylinder(r=shaft_r, h=exposed_shaft_l, center=True)
-    obj = motor + up(motor_l+gearbox_l/2)(gearbox + up(gearbox_l/2+collar_h/2)(
-        collar + up(collar_h/2+exposed_shaft_l/2)(shaft)))
-    mount = scale([1.05, 1.05, 1])(motor + up(motor_l + gearbox_l/2)(cube([h, w, gearbox_l+2*collar_h], center=True))) - obj
 
 
 class DriveEsc:
@@ -121,22 +102,42 @@ class Transmitter:
     l = 26
     obj = cube([l, w, h])
 
-
 class Wheel:
-    w = 10.16
-    d = 34.925
+    w = 12.7 # 0.5inch
+    d = 38.1 # 1.5 inch
     r = d / 2
     obj = cylinder(r=r, h=w, center=True)
 
 
 class DriveSystem:
-    '''obj = mirror_copy([0, 1, 0],
-                      trans([0, 5, 0],
-                            GearMotor.obj + trans(
-                                [0, GearMotor.total_l - Wheel.w / 2, 0],
-                                rot([90, 0, 0], Wheel.obj))))'''
-    obj = GearMotor.obj + up(Wheel.w/2 + GearMotor.total_l - GearMotor.exposed_shaft_l + GearMotor.collar_h)(Wheel.obj)
-
+    exposed_shaft_l = 8.67
+    gearbox_l = 9
+    motor_l = 17
+    total_l = exposed_shaft_l + gearbox_l + motor_l
+    h = 10
+    w = 12
+    collar_h = 0.6
+    collar_r = 1.75
+    motor_r = 6
+    shaft_r = 1.5
+    shaft_flat = 1.25
+    mount_l = gearbox_l + motor_l + 2
+    motor = up(motor_l/2)(cube([h, w, motor_l], center=True)) * cylinder(r=motor_r, h=motor_l)
+    gearbox = cube([h, w, gearbox_l], center=True)
+    collar = cylinder(r=collar_r, h=collar_h, center=True)
+    shaft = cylinder(r=shaft_r, h=exposed_shaft_l, center=True)
+    gear_motor = motor + up(motor_l+gearbox_l/2)(gearbox + up(gearbox_l/2+collar_h/2)(
+        collar + up(collar_h/2+exposed_shaft_l/2)(shaft)))
+    wheel_disp = Wheel.w / 2 + total_l - exposed_shaft_l + collar_h + 1
+    clip = mirror_copy([1, 0, 0], trans([-h/2, 0, motor_l+gearbox_l], rot([90, 0, 0], cylinder(
+        r=collar_h, h=h / 2, center=True))))
+    obj = gear_motor + up(wheel_disp)(Wheel.obj)
+    mount = (
+        clip + up(mount_l/2 - 2)(
+        difference()(
+            cube([h+1, w+1, mount_l], center=True),
+            up(2)(cube([h-1, w-1, mount_l], center=True)),
+            cube([h-3, w-2, mount_l+0.01], center=True))) - gear_motor)
 
 class WeaponMotor:
     r = 17.5
@@ -147,7 +148,19 @@ class WeaponMotor:
     collar_l = 3.5
     exposed_shaft_l = 16.5
     shaft_l = 47.5
-    obj = forward(middle_l)(translate([12.45, 13.89, -26.76])(rotate([0, 0, 180])(import_("Modified.stl"))))
+    screw_disp1 = sqrt(((25/2)**2)/2)
+    screw_disp2 = sqrt(((19/2)**2)/2)
+    screw = rot([-90, 0, 0], screw(screw_type='m3', screw_length=8))
+    screws = union()(
+        trans([-screw_disp1, middle_l - base_l / 2, screw_disp1], screw), # top right
+        trans([screw_disp1, middle_l - base_l / 2, -screw_disp1], screw), # bottom left
+        trans([-screw_disp2, middle_l - base_l / 2, -screw_disp2], screw), # bottom right
+        trans([screw_disp2, middle_l - base_l / 2, screw_disp2], screw) # top left
+    )
+    bearing = trans([0, -(exposed_shaft_l+0.5), 0], rot([90,0,0], bearing(bearing_type='625')))
+    obj = forward(middle_l)(translate([12.45, 13.89, -26.76])(rotate([0, 0, 180])(
+        import_("Modified.stl")))) + screws + bearing
+
 
 
 class WeaponBlade:
@@ -155,8 +168,8 @@ class WeaponBlade:
     w = 3 * t
     l = 12 * t
     r = sqrt((l/2)**2 + (w/2)**2)
-    obj = translate([-w / 2, -t / 2, -l / 2])(cube([w, t, l])) \
-          + hull()(
+    obj = translate([-w / 2, -t / 2, -l / 2])(cube([w, t, l])) +\
+          hull()(
         rotate([90, 0, 0])(cylinder(WeaponMotor.r + 6, t, center=True)),
         translate([-w / 2, -t / 2, -l / 4])(cube([w, t, l / 2]))) \
           - rotate([90, 0, 0])(cylinder(WeaponMotor.r, t, center=True))
@@ -187,7 +200,7 @@ class Frame:
         cylinder(r=WeaponBlade.r + 4, h=WeaponBlade.t + 6, center=True)
     ))
     lid_cylinder = (rot([0, theta, 0], cylinder(r1=1.5*r, r2=0.75*r, h=r*1, center=True)))
-    lid_ellipsoid = rot([0, theta, 0], scale([1.5, 1.5, 1])(sphere(r*0.26)))
+    lid_ellipsoid = rot([0, theta, 0], scale([1.25, 1.25, 1])(sphere(r*0.26)))
 
     # lid_plane_equation: z = -hx/2l + h/2
     # co-ordinates for the sphere in the front corner of the lid
@@ -201,8 +214,6 @@ class Frame:
     s4_lid_x = 0.83 * l
     s4_lid_z = -h * s4_lid_x / (2 * l) + h/2
     s4_lid = trans([s4_lid_x, -w / 4, s4_lid_z], lid_ellipsoid)
-
-
     c1_lid_x = 0.38 * l
     c1_lid_z = -h * c1_lid_x / (2 * l) + h / 2
     # cylinder in the front corner
@@ -222,10 +233,12 @@ class Frame:
     lid = up(r*0.8)(hull()(s1_lid, s3_lid, s4_lid))
     top_hole = lid + pry_space
     top_through_hole = (up(r*0.5)(hull()(c1_lid, c3_lid, c4_lid)))
+    # all that for a stupid lid
 
-    truss_l = 80
+
+    truss_l = 90
     truss_h = 2 * WeaponMotor.r + 8
-    truss_t = WeaponMotor.base_l + 6
+    truss_t = WeaponMotor.base_l + 5
     weapon_motor_mount_t = WeaponMotor.base_l + 5
     weapon_motor_mount_h = 2 * WeaponMotor.r + 8
     test_truss = truss = rotate([0, 0, 0])(
@@ -244,31 +257,40 @@ class Frame:
         - translate([12.5, 10, 0])(make_triangles(r=2, l=9, num_x=2, num_y=9)))
 
     truss = (rotate([90, 0, 0])(linear_extrude(height=truss_t, scale=1)(truss))
-             + translate([-truss_l, -truss_t / 2, 0])(cube([truss_l, truss_t / 7, truss_h])))
+             + translate([-truss_l, -0.6*truss_t, 0])(cube([truss_l, truss_t / 4, truss_h])))
 
     weapon_motor_mount = translate([-overhang, 14.2, 0])(
         rotate([90, 0, 0])(
             cylinder(WeaponMotor.r + 4, weapon_motor_mount_t, center=True)) \
         + translate([truss_l, truss_t / 2, -truss_h / 2])(truss)
         - rotate([90, 0, 0])(
-            cylinder(r1=WeaponMotor.base_r, r2=WeaponMotor.r, h=(WeaponMotor.base_l + 5) / 2)))
+            cylinder(r1=WeaponMotor.base_r, r2=WeaponMotor.r, h=(WeaponMotor.base_l + 5) / 2))
+        - rotate([90, 0, 0])(
+            cylinder(r1=WeaponMotor.shaft_r*2, r2=WeaponMotor.shaft_r*2, h=truss_t+1, center=True))
+    )
 
-    wire_hole = translate([-5, WeaponMotor.base_l + 2, -6])(cube([40, 7, 12]))
+    wire_hole = translate([-5, WeaponMotor.base_l + 2, -6])(cube([40, 6, 12]))
 
-    weapon_shaft_mount = translate([-overhang, -18, 0])(
+    weapon_shaft_mount = translate([-overhang, -23, 0])(
         rotate([90, 0, 0])(
-            cylinder(0.8 * (WeaponMotor.r + 4), weapon_motor_mount_t, center=True)) \
-        + (scale([0.8, 1, 0.8])(translate([truss_l, truss_t / 2, -truss_h / 2])(truss))))
+            cylinder(0.8 * (WeaponMotor.r + 4), truss_t*0.8, center=True)) \
+        + (scale([0.8, 0.8, 0.8])(translate([truss_l, truss_t / 2, -truss_h / 2])(truss))))
 
     brace = right(l / 4)(cube([t, 0.29 * w, 0.78 * h], center=True))
 
-
-
+    side_wall_angle = 90 - degrees(atan(l/(w/2)))
+    drive_motor_mount_disp = [l * .90, w * -0.255, 0]
+    drive_motor_mounts = mirror_copy(
+        [0, 1, 0], trans(drive_motor_mount_disp, (rot([90, 90, -side_wall_angle], DriveSystem.mount))))
+    drive_motors = mirror_copy(
+        [0, 1, 0], trans(drive_motor_mount_disp, (rot([90, 90, -side_wall_angle], DriveSystem.gear_motor))))
 
     obj = difference()(
         union()(tetrahedron, weapon_shaft_mount, weapon_motor_mount),
-        union()(tetrahedron_hole, (left(overhang)(WeaponMotor.obj))))
-    obj = obj + brace - wire_hole - top_hole - spinner_zone - top_through_hole
+        union()(tetrahedron_hole, (left(overhang)(WeaponMotor.obj))),
+
+    )
+    obj = obj + brace - wire_hole - top_hole - spinner_zone - top_through_hole + drive_motor_mounts - drive_motors
 
 
 
@@ -284,11 +306,21 @@ def cutaway_xy(obj: OpenSCADObject, z=0):
 
 # what shows up
 def assembly():
-    #return DriveSystem.obj
-    #return DriveSystem.obj
-    #return (Frame.obj) - mirror_copy([0, 1, 0], trans([Frame.l * .93, Frame.w * -0.31, 0], (rot([90, 90, 0], DriveSystem.obj)))) + trans([Frame.l * .93, Frame.w * -0.31, 0], (rot([90, 90, 0], DriveSystem.obj)))
-    return (Frame.obj)
+    #return (DriveSystem.obj + right(22)(DriveSystem.mount))
+    '''return (union()(
+        Frame.obj,
+        mirror_copy(
+            [0, 1, 0], trans(Frame.drive_motor_mount_disp, (rot([90, 90, -Frame.side_wall_angle], DriveSystem.obj))))
+    ))
+    '''
+
+
+
+    #return  cutaway_xy(Frame.obj)
     # return cutaway_xz(Frame.obj + trans([Frame.l*0.8,0,0], DriveSystem.obj))
+
+    #return WeaponMotor.obj
+    return rot([0, Frame.theta, 0], Frame.obj)
     #return rot([0,Frame.theta,0], left(Frame.overhang)(WeaponMotor.obj+WeaponBlade.obj) + Frame.obj)
 
 
