@@ -103,8 +103,10 @@ class Transmitter:
     obj = cube([l, w, h])
 
 class Wheel:
+    # flingertech snap wheel
     w = 12.7 # 0.5inch
     d = 38.1 # 1.5 inch
+    d = 31.75 # 1.25 inch
     r = d / 2
     obj = cylinder(r=r, h=w, center=True)
 
@@ -197,7 +199,7 @@ class Frame:
     tetrahedron_hole = hull()(s1i + s2i + s3i + s4i)
 
     spinner_zone = translate([-l / 5, 0, 0])(rotate([90, 0, 0])(
-        cylinder(r=WeaponBlade.r + 4, h=WeaponBlade.t + 6, center=True)
+        cylinder(r=WeaponBlade.r + 2, h=WeaponBlade.t + 6, center=True)
     ))
     lid_cylinder = (rot([0, theta, 0], cylinder(r1=1.5*r, r2=0.75*r, h=r*1, center=True)))
     lid_ellipsoid = rot([0, theta, 0], scale([1.25, 1.25, 1])(sphere(r*0.26)))
@@ -208,25 +210,25 @@ class Frame:
     s1_lid_z = -h*s1_lid_x/(2*l) + h/2
     # sphere in the front corner
     s1_lid = trans([s1_lid_x, 0, s1_lid_z], lid_ellipsoid)
-    s3_lid_x = 0.83 * l
+    s3_lid_x = 0.9 * l
     s3_lid_z = -h*s3_lid_x/(2*l) + h/2
-    s3_lid = trans([s3_lid_x, w/4, s3_lid_z], lid_ellipsoid)
-    s4_lid_x = 0.83 * l
+    s3_lid = trans([s3_lid_x, w*0.3, s3_lid_z], lid_ellipsoid)
+    s4_lid_x = 0.9 * l
     s4_lid_z = -h * s4_lid_x / (2 * l) + h/2
-    s4_lid = trans([s4_lid_x, -w / 4, s4_lid_z], lid_ellipsoid)
+    s4_lid = trans([s4_lid_x, -w * 0.3, s4_lid_z], lid_ellipsoid)
     c1_lid_x = 0.38 * l
     c1_lid_z = -h * c1_lid_x / (2 * l) + h / 2
     # cylinder in the front corner
     c1_lid = trans([c1_lid_x, 0, c1_lid_z], lid_cylinder)
-    c3_lid_x = 0.78 * l
+    c3_lid_x = 0.85 * l
     c3_lid_z = -h * c3_lid_x / (2 * l) + h / 2
-    c3_lid = trans([c3_lid_x, 0.17*w, c3_lid_z], lid_cylinder)
-    c4_lid_x = 0.78 * l
+    c3_lid = trans([c3_lid_x, 0.22*w, c3_lid_z], lid_cylinder)
+    c4_lid_x = 0.85 * l
     c4_lid_z = -h * c4_lid_x / (2 * l) + h / 2
-    c4_lid = trans([c4_lid_x, -0.17*w , c4_lid_z], lid_cylinder)
+    c4_lid = trans([c4_lid_x, -0.22*w , c4_lid_z], lid_cylinder)
     pry_space_h = r
     pry_space_r = 4*r
-    pry_space_x = 0.75 * l
+    pry_space_x = 0.78 * l
     pry_space_z = -h * pry_space_x / (2 * l) + h/2 + pry_space_h + 0.17
     pry_space = trans([pry_space_x, 0, pry_space_z],
                         rot([0,theta,0], (cylinder(r=pry_space_r, h=pry_space_h, center=True))))
@@ -306,13 +308,15 @@ def cutaway_xy(obj: OpenSCADObject, z=0):
 
 # what shows up
 def assembly():
+    return rot([0, Frame.theta, 0], Frame.obj)
     #return (DriveSystem.obj + right(22)(DriveSystem.mount))
-    '''return (union()(
+    return rot([0,Frame.theta,0], union()(
+        left(Frame.overhang)(WeaponMotor.obj + WeaponBlade.obj),
         Frame.obj,
         mirror_copy(
             [0, 1, 0], trans(Frame.drive_motor_mount_disp, (rot([90, 90, -Frame.side_wall_angle], DriveSystem.obj))))
     ))
-    '''
+
 
 
 
@@ -320,7 +324,7 @@ def assembly():
     # return cutaway_xz(Frame.obj + trans([Frame.l*0.8,0,0], DriveSystem.obj))
 
     #return WeaponMotor.obj
-    return rot([0, Frame.theta, 0], Frame.obj)
+    #return rot([0, Frame.theta, 0], Frame.obj)
     #return rot([0,Frame.theta,0], left(Frame.overhang)(WeaponMotor.obj+WeaponBlade.obj) + Frame.obj)
 
 
